@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>行政書士試験 択一対策アプリ</title>
+  <title>行政書士試験 択一対策＆学習ダッシュボード</title>
   <style>
     :root {
       --primary-color: #2563eb;
@@ -12,13 +12,14 @@
       --text-color: #1e293b;
       --correct-color: #16a34a;
       --wrong-color: #dc2626;
+      --gray-light: #f1f5f9;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       margin: 0;
-      padding: 20px;
+      padding: 16px;
       display: flex;
       justify-content: center;
     }
@@ -30,18 +31,110 @@
       border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    .meta {
+    /* タブ */
+    .tab-header {
+      display: flex;
+      gap: 8px;
+      border-bottom: 2px solid var(--gray-light);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 16px;
+      border: none;
+      background: none;
+      font-size: 1em;
+      font-weight: bold;
+      color: #64748b;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    .tab-btn.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
+    /* ダッシュボード */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--gray-light);
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-top: 4px;
+    }
+    .stat-label {
+      font-size: 0.8em;
+      color: #64748b;
+    }
+
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .category-item {
+      background: #fff;
+      border: 1px solid var(--gray-light);
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .category-meta {
       display: flex;
       justify-content: space-between;
       font-size: 0.9em;
-      color: #64748b;
-      margin-bottom: 12px;
+      margin-bottom: 6px;
+      font-weight: bold;
     }
+    .progress-bar-bg {
+      background: var(--gray-light);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      background: var(--primary-color);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    /* クイズヘッダー情報 */
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .topic-tag {
+      display: inline-block;
+      background-color: #eff6ff;
+      color: var(--primary-color);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+
     .question {
-      font-size: 1.1em;
+      font-size: 1.05em;
       font-weight: bold;
       margin-bottom: 20px;
       line-height: 1.6;
+      white-space: pre-wrap;
     }
     .options {
       display: flex;
@@ -57,15 +150,11 @@
       text-align: left;
       font-size: 100%;
       cursor: pointer;
-      transition: all 0.2s;
       line-height: 1.5;
     }
     .option-btn:hover:not(:disabled) {
       border-color: var(--primary-color);
       background-color: #eff6ff;
-    }
-    .option-btn:disabled {
-      cursor: default;
     }
     .result-box {
       margin-top: 20px;
@@ -89,8 +178,7 @@
       line-height: 1.6;
       white-space: pre-wrap;
     }
-    .next-btn {
-      margin-top: 16px;
+    .btn-primary {
       width: 100%;
       padding: 12px;
       background-color: var(--primary-color);
@@ -100,14 +188,17 @@
       font-weight: bold;
       font-size: 1em;
       cursor: pointer;
+      margin-top: 12px;
     }
-    .next-btn:hover {
-      background-color: #1d4ed8;
+    .btn-danger {
+      background-color: #94a3b8;
+      font-size: 0.8em;
+      padding: 6px 12px;
+      margin-top: 20px;
     }
     #loading {
       text-align: center;
       padding: 40px;
-      font-size: 1.2em;
       color: #64748b;
     }
   </style>
@@ -115,58 +206,153 @@
 <body>
 
 <div class="container">
-  <div id="loading">問題を読み込み中...</div>
-  <div id="quiz-content" style="display: none;">
-    <div class="meta">
-      <span id="q-category"></span>
-      <span id="q-progress"></span>
+  <div id="loading">問題データを読み込み中...</div>
+
+  <div id="app-content" style="display: none;">
+    <!-- タブヘッダー -->
+    <div class="tab-header">
+      <button class="tab-btn active" onclick="switchTab('dashboard')">ダッシュボード</button>
+      <button class="tab-btn" onclick="switchTab('quiz')">問題演習</button>
     </div>
-    <div class="question" id="q-text"></div>
-    <div class="options" id="q-options"></div>
-    
-    <div id="result-box" class="result-box">
-      <h3 id="result-title" style="margin-top:0;"></h3>
-      <div>正解：<span id="correct-answer"></span></div>
-      <div class="explanation" id="q-explanation"></div>
-      <button class="next-btn" id="next-btn" onclick="nextQuestion()">次の問題へ</button>
+
+    <!-- ダッシュボード画面 -->
+    <div id="tab-dashboard">
+      <h2 style="margin-top:0;">学習状況</h2>
+      
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <div class="stat-label">総解答数</div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">正解数</div>
+          <div class="stat-value" id="stat-correct">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">全体正解率</div>
+          <div class="stat-value" id="stat-rate">0%</div>
+        </div>
+      </div>
+
+      <h3>科目別分析</h3>
+      <div class="category-list" id="category-stats"></div>
+
+      <button class="btn-primary" onclick="switchTab('quiz')">問題を解く</button>
+      <center><button class="btn-primary btn-danger" onclick="resetStats()">学習データをリセット</button></center>
+    </div>
+
+    <!-- クイズ画面 -->
+    <div id="tab-quiz" style="display: none;">
+      <div class="meta">
+        <span id="q-category"></span>
+        <span id="q-progress"></span>
+      </div>
+      <div id="q-thema" class="topic-tag"></div>
+      <div class="question" id="q-text"></div>
+      <div class="options" id="q-options"></div>
+      
+      <div id="result-box" class="result-box">
+        <h3 id="result-title" style="margin-top:0;"></h3>
+        <div>正解：<span id="correct-answer"></span></div>
+        <div class="explanation" id="q-explanation"></div>
+        <button class="btn-primary" onclick="nextQuestion()">次の問題へ</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-  // GASのAPI URL
   const API_URL = "https://script.google.com/macros/s/AKfycby5CbCOq9qtOTdHTo-bL5yXN_GHxJiCFePbk6Uz0It1E1oLTH7EM4WKEZSzqw65XA4/exec";
 
   let questions = [];
   let currentIndex = 0;
+  
+  let userStats = JSON.parse(localStorage.getItem("gyosei_quiz_stats")) || {
+    total: 0,
+    correct: 0,
+    categories: {}
+  };
 
-  // データ取得
-  async function fetchQuestions() {
+  async function init() {
     try {
       const response = await fetch(API_URL);
       questions = await response.json();
       document.getElementById("loading").style.display = "none";
-      document.getElementById("quiz-content").style.display = "block";
+      document.getElementById("app-content").style.display = "block";
+      
+      updateDashboard();
       showQuestion();
     } catch (error) {
       document.getElementById("loading").innerText = "データの読み込みに失敗しました。";
-      console.error(error);
     }
   }
 
-  // 問題表示
+  function switchTab(tabName) {
+    const isDash = tabName === 'dashboard';
+    document.getElementById("tab-dashboard").style.display = isDash ? "block" : "none";
+    document.getElementById("tab-quiz").style.display = isDash ? "none" : "block";
+    
+    const tabs = document.querySelectorAll(".tab-btn");
+    tabs[0].classList.toggle("active", isDash);
+    tabs[1].classList.toggle("active", !isDash);
+
+    if (isDash) updateDashboard();
+  }
+
+  function updateDashboard() {
+    document.getElementById("stat-total").innerText = userStats.total;
+    document.getElementById("stat-correct").innerText = userStats.correct;
+    const rate = userStats.total > 0 ? Math.round((userStats.correct / userStats.total) * 100) : 0;
+    document.getElementById("stat-rate").innerText = `${rate}%`;
+
+    const catContainer = document.getElementById("category-stats");
+    catContainer.innerHTML = "";
+
+    const categories = [...new Set(questions.map(q => q.category || "その他"))];
+
+    categories.forEach(cat => {
+      const catData = userStats.categories[cat] || { total: 0, correct: 0 };
+      const catRate = catData.total > 0 ? Math.round((catData.correct / catData.total) * 100) : 0;
+
+      const item = document.createElement("div");
+      item.className = "category-item";
+      item.innerHTML = `
+        <div class="category-meta">
+          <span>${cat}</span>
+          <span>正解率 ${catRate}% (${catData.correct}/${catData.total}問)</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width: ${catRate}%;"></div>
+        </div>
+      `;
+      catContainer.appendChild(item);
+    });
+  }
+
   function showQuestion() {
     const q = questions[currentIndex];
-    document.getElementById("q-category").innerText = `【${q.category || ''}】 ${q.year ? q.year + '年' : ''}`;
+    
+    // 科目・中分類・年度の表示
+    const categoryText = q.subcategory ? `${q.category} > ${q.subcategory}` : (q.category || '');
+    const yearText = q.year ? `［${q.year}］` : '';
+    document.getElementById("q-category").innerText = `【${categoryText}】 ${yearText}`;
+    
+    // テーマの表示
+    const themaElem = document.getElementById("q-thema");
+    if (q.thema) {
+      themaElem.style.display = "inline-block";
+      themaElem.innerText = `テーマ：${q.thema}`;
+    } else {
+      themaElem.style.display = "none";
+    }
+
     document.getElementById("q-progress").innerText = `問 ${currentIndex + 1} / ${questions.length}`;
     document.getElementById("q-text").innerText = q.question;
-    
     document.getElementById("result-box").style.display = "none";
 
     const optionsContainer = document.getElementById("q-options");
     optionsContainer.innerHTML = "";
 
-    // 肢1〜5を生成（空欄でないものだけ）
     [1, 2, 3, 4, 5].forEach(num => {
       const optText = q[`option${num}`];
       if (optText) {
@@ -179,45 +365,52 @@
     });
   }
 
-  // 解答選択
   function selectOption(selectedNum) {
     const q = questions[currentIndex];
     const isCorrect = selectedNum == q.answer;
+    const category = q.category || "その他";
 
-    // ボタンの無効化
-    const btns = document.querySelectorAll(".option-btn");
-    btns.forEach(btn => btn.disabled = true);
+    userStats.total++;
+    if (isCorrect) userStats.correct++;
+
+    if (!userStats.categories[category]) {
+      userStats.categories[category] = { total: 0, correct: 0 };
+    }
+    userStats.categories[category].total++;
+    if (isCorrect) userStats.categories[category].correct++;
+
+    localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
+
+    document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
 
     const resultBox = document.getElementById("result-box");
-    const resultTitle = document.getElementById("result-title");
-    
     resultBox.style.display = "block";
-    if (isCorrect) {
-      resultBox.className = "result-box correct";
-      resultTitle.innerText = "⭕ 正解！";
-    } else {
-      resultBox.className = "result-box wrong";
-      resultTitle.innerText = "❌ 不正解...";
-    }
-
+    resultBox.className = isCorrect ? "result-box correct" : "result-box wrong";
+    document.getElementById("result-title").innerText = isCorrect ? "⭕ 正解！" : "❌ 不正解...";
     document.getElementById("correct-answer").innerText = `肢 ${q.answer}`;
     document.getElementById("q-explanation").innerText = q.explanation || "解説はありません。";
   }
 
-  // 次の問題へ
   function nextQuestion() {
     currentIndex++;
     if (currentIndex < questions.length) {
       showQuestion();
     } else {
-      alert("すべての問題をとき終えました！最初に戻ります。");
+      alert("すべての問題をとき終えました！ダッシュボードで結果を確認してみましょう。");
       currentIndex = 0;
-      showQuestion();
+      switchTab('dashboard');
     }
   }
 
-  // 初期化実行
-  fetchQuestions();
+  function resetStats() {
+    if (confirm("これまでの学習データをすべて消去しますか？")) {
+      localStorage.removeItem("gyosei_quiz_stats");
+      userStats = { total: 0, correct: 0, categories: {} };
+      updateDashboard();
+    }
+  }
+
+  init();
 </script>
 
 </body>
