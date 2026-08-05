@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>行政書士試験 択一対策アプリ</title>
+  <style>
+    :root {
+      --primary-color: #2563eb;
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-color: #1e293b;
+      --correct-color: #16a34a;
+      --wrong-color: #dc2626;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 650px;
+      width: 100%;
+      background: var(--card-bg);
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9em;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+    .question {
+      font-size: 1.1em;
+      font-weight: bold;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .option-btn {
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      text-align: left;
+      font-size: 100%;
+      cursor: pointer;
+      transition: all 0.2s;
+      line-height: 1.5;
+    }
+    .option-btn:hover:not(:disabled) {
+      border-color: var(--primary-color);
+      background-color: #eff6ff;
+    }
+    .option-btn:disabled {
+      cursor: default;
+    }
+    .result-box {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      display: none;
+    }
+    .result-box.correct {
+      background-color: #dcfce7;
+      color: #14532d;
+      border: 1px solid #bbf7d0;
+    }
+    .result-box.wrong {
+      background-color: #fee2e2;
+      color: #7f1d1d;
+      border: 1px solid #fecaca;
+    }
+    .explanation {
+      margin-top: 12px;
+      font-size: 0.95em;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .next-btn {
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    .next-btn:hover {
+      background-color: #1d4ed8;
+    }
+    #loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 1.2em;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="loading">問題を読み込み中...</div>
+  <div id="quiz-content" style="display: none;">
+    <div class="meta">
+      <span id="q-category"></span>
+      <span id="q-progress"></span>
+    </div>
+    <div class="question" id="q-text"></div>
+    <div class="options" id="q-options"></div>
+    
+    <div id="result-box" class="result-box">
+      <h3 id="result-title" style="margin-top:0;"></h3>
+      <div>正解：<span id="correct-answer"></span></div>
+      <div class="explanation" id="q-explanation"></div>
+      <button class="next-btn" id="next-btn" onclick="nextQuestion()">次の問題へ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // GASのAPI URL
+  const API_URL = "https://script.google.com/macros/s/AKfycby5CbCOq9qtOTdHTo-bL5yXN_GHxJiCFePbk6Uz0It1E1oLTH7EM4WKEZSzqw65XA4/exec";
+
+  let questions = [];
+  let currentIndex = 0;
+
+  // データ取得
+  async function fetchQuestions() {
+    try {
+      const response = await fetch(API_URL);
+      questions = await response.json();
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("quiz-content").style.display = "block";
+      showQuestion();
+    } catch (error) {
+      document.getElementById("loading").innerText = "データの読み込みに失敗しました。";
+      console.error(error);
+    }
+  }
+
+  // 問題表示
+  function showQuestion() {
+    const q = questions[currentIndex];
+    document.getElementById("q-category").innerText = `【${q.category || ''}】 ${q.year ? q.year + '年' : ''}`;
+    document.getElementById("q-progress").innerText = `問 ${currentIndex + 1} / ${questions.length}`;
+    document.getElementById("q-text").innerText = q.question;
+    
+    document.getElementById("result-box").style.display = "none";
+
+    const optionsContainer = document.getElementById("q-options");
+    optionsContainer.innerHTML = "";
+
+    // 肢1〜5を生成（空欄でないものだけ）
+    [1, 2, 3, 4, 5].forEach(num => {
+      const optText = q[`option${num}`];
+      if (optText) {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.innerText = `肢${num}. ${optText}`;
+        btn.onclick = () => selectOption(num);
+        optionsContainer.appendChild(btn);
+      }
+    });
+  }
+
+  // 解答選択
+  function selectOption(selectedNum) {
+    const q = questions[currentIndex];
+    const isCorrect = selectedNum == q.answer;
+
+    // ボタンの無効化
+    const btns = document.querySelectorAll(".option-btn");
+    btns.forEach(btn => btn.disabled = true);
+
+    const resultBox = document.getElementById("result-box");
+    const resultTitle = document.getElementById("result-title");
+    
+    resultBox.style.display = "block";
+    if (isCorrect) {
+      resultBox.className = "result-box correct";
+      resultTitle.innerText = "⭕ 正解！";
+    } else {
+      resultBox.className = "result-box wrong";
+      resultTitle.innerText = "❌ 不正解...";
+    }
+
+    document.getElementById("correct-answer").innerText = `肢 ${q.answer}`;
+    document.getElementById("q-explanation").innerText = q.explanation || "解説はありません。";
+  }
+
+  // 次の問題へ
+  function nextQuestion() {
+    currentIndex++;
+    if (currentIndex < questions.length) {
+      showQuestion();
+    } else {
+      alert("すべての問題をとき終えました！最初に戻ります。");
+      currentIndex = 0;
+      showQuestion();
+    }
+  }
+
+  // 初期化実行
+  fetchQuestions();
+</script>
+
+</body>
+</html>
