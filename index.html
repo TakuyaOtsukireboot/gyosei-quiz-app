@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>行政書士試験 択一対策＆学習ダッシュボード</title>
+  <title>行政書士試験 択一対策＆クラウド同期ダッシュボード</title>
+  <!-- Google Identity Services (ログイン用) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --primary-color: #2563eb;
       --bg-color: #f8fafc;
       --card-bg: #ffffff;
       --text-color: #1e293b;
-      --correct-color: #16a34a;
-      --wrong-color: #dc2626;
       --gray-light: #f1f5f9;
     }
     body {
@@ -31,7 +31,21 @@
       border-radius: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    /* タブ */
+    .auth-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .user-info {
+      font-size: 0.9em;
+      font-weight: bold;
+      color: #1e40af;
+    }
     .tab-header {
       display: flex;
       gap: 8px;
@@ -53,8 +67,6 @@
       color: var(--primary-color);
       border-bottom-color: var(--primary-color);
     }
-
-    /* ダッシュボード */
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -77,7 +89,6 @@
       font-size: 0.8em;
       color: #64748b;
     }
-
     .category-list {
       display: flex;
       flex-direction: column;
@@ -109,8 +120,6 @@
       width: 0%;
       transition: width 0.3s;
     }
-
-    /* クイズヘッダー情報 */
     .meta {
       display: flex;
       justify-content: space-between;
@@ -128,7 +137,6 @@
       font-weight: bold;
       margin-bottom: 16px;
     }
-
     .question {
       font-size: 1.05em;
       font-weight: bold;
@@ -190,11 +198,13 @@
       cursor: pointer;
       margin-top: 12px;
     }
-    .btn-danger {
-      background-color: #94a3b8;
-      font-size: 0.8em;
+    .btn-secondary {
+      background-color: #64748b;
+      color: white;
+      border: none;
       padding: 6px 12px;
-      margin-top: 20px;
+      border-radius: 6px;
+      cursor: pointer;
     }
     #loading {
       text-align: center;
@@ -206,16 +216,21 @@
 <body>
 
 <div class="container">
+  <!-- Google ログイン状態バー -->
+  <div class="auth-box">
+    <div class="user-info" id="user-status">ログインしてGoogleドライブと同期可能</div>
+    <button id="auth-btn" class="btn-secondary" onclick="handleAuthClick()">Googleでログイン</button>
+  </div>
+
   <div id="loading">問題データを読み込み中...</div>
 
   <div id="app-content" style="display: none;">
-    <!-- タブヘッダー -->
     <div class="tab-header">
       <button class="tab-btn active" onclick="switchTab('dashboard')">ダッシュボード</button>
       <button class="tab-btn" onclick="switchTab('quiz')">問題演習</button>
     </div>
 
-    <!-- ダッシュボード画面 -->
+    <!-- ダッシュボード -->
     <div id="tab-dashboard">
       <h2 style="margin-top:0;">学習状況</h2>
       
@@ -238,7 +253,6 @@
       <div class="category-list" id="category-stats"></div>
 
       <button class="btn-primary" onclick="switchTab('quiz')">問題を解く</button>
-      <center><button class="btn-primary btn-danger" onclick="resetStats()">学習データをリセット</button></center>
     </div>
 
     <!-- クイズ画面 -->
@@ -262,7 +276,12 @@
 </div>
 
 <script>
+  const CLIENT_ID = '198605799094-9phc85mf7slksn9tpnh4vlfbvhljtm3a.apps.googleusercontent.com';
   const API_URL = "https://script.google.com/macros/s/AKfycby5CbCOq9qtOTdHTo-bL5yXN_GHxJiCFePbk6Uz0It1E1oLTH7EM4WKEZSzqw65XA4/exec";
+
+  let tokenClient;
+  let accessToken = null;
+  let fileId = null;
 
   let questions = [];
   let currentIndex = 0;
@@ -273,6 +292,99 @@
     categories: {}
   };
 
+  function initGoogleAuth() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.appdata',
+      callback: async (response) => {
+        if (response.error !== undefined) {
+          throw (response);
+        }
+        accessToken = response.access_token;
+        document.getElementById('user-status').innerText = '☁ Googleドライブ同期中';
+        document.getElementById('auth-btn').innerText = 'ログアウト';
+        document.getElementById('auth-btn').onclick = handleSignout;
+        
+        await loadStatsFromDrive();
+      },
+    });
+  }
+
+  function handleAuthClick() {
+    if (accessToken === null) {
+      tokenClient.requestAccessToken({prompt: 'consent'});
+    }
+  }
+
+  function handleSignout() {
+    if (accessToken) {
+      google.accounts.oauth2.revoke(accessToken, () => {
+        accessToken = null;
+        document.getElementById('user-status').innerText = 'ログインしてGoogleドライブと同期可能';
+        document.getElementById('auth-btn').innerText = 'Googleでログイン';
+        document.getElementById('auth-btn').onclick = handleAuthClick;
+      });
+    }
+  }
+
+  async function loadStatsFromDrive() {
+    try {
+      const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const data = await res.json();
+      const file = data.files.find(f => f.name === 'gyosei_stats.json');
+
+      if (file) {
+        fileId = file.id;
+        const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        userStats = await fileRes.json();
+        localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
+        updateDashboard();
+      } else {
+        await saveStatsToDrive();
+      }
+    } catch (err) {
+      console.error("ドライブからの読み込み失敗:", err);
+    }
+  }
+
+  async function saveStatsToDrive() {
+    localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
+    if (!accessToken) return;
+
+    const fileContent = JSON.stringify(userStats);
+    
+    if (fileId) {
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: fileContent
+      });
+    } else {
+      const metadata = {
+        name: 'gyosei_stats.json',
+        parents: ['appDataFolder']
+      };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', new Blob([fileContent], { type: 'application/json' }));
+
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form
+      });
+      const data = await res.json();
+      fileId = data.id;
+    }
+  }
+
   async function init() {
     try {
       const response = await fetch(API_URL);
@@ -282,6 +394,7 @@
       
       updateDashboard();
       showQuestion();
+      initGoogleAuth();
     } catch (error) {
       document.getElementById("loading").innerText = "データの読み込みに失敗しました。";
     }
@@ -331,13 +444,10 @@
 
   function showQuestion() {
     const q = questions[currentIndex];
-    
-    // 科目・中分類・年度の表示
     const categoryText = q.subcategory ? `${q.category} > ${q.subcategory}` : (q.category || '');
     const yearText = q.year ? `［${q.year}］` : '';
     document.getElementById("q-category").innerText = `【${categoryText}】 ${yearText}`;
     
-    // テーマの表示
     const themaElem = document.getElementById("q-thema");
     if (q.thema) {
       themaElem.style.display = "inline-block";
@@ -365,7 +475,7 @@
     });
   }
 
-  function selectOption(selectedNum) {
+  async function selectOption(selectedNum) {
     const q = questions[currentIndex];
     const isCorrect = selectedNum == q.answer;
     const category = q.category || "その他";
@@ -379,7 +489,7 @@
     userStats.categories[category].total++;
     if (isCorrect) userStats.categories[category].correct++;
 
-    localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
+    await saveStatsToDrive();
 
     document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
 
@@ -399,14 +509,6 @@
       alert("すべての問題をとき終えました！ダッシュボードで結果を確認してみましょう。");
       currentIndex = 0;
       switchTab('dashboard');
-    }
-  }
-
-  function resetStats() {
-    if (confirm("これまでの学習データをすべて消去しますか？")) {
-      localStorage.removeItem("gyosei_quiz_stats");
-      userStats = { total: 0, correct: 0, categories: {} };
-      updateDashboard();
     }
   }
 
