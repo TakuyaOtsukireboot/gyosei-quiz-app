@@ -3,415 +3,238 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>行政書士試験 択一対策＆学習ダッシュボード</title>
+  <title>会員番号検索システム</title>
   <style>
-    :root {
-      --primary-color: #2563eb;
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
-      --text-color: #1e293b;
-      --correct-color: #16a34a;
-      --wrong-color: #dc2626;
-      --gray-light: #f1f5f9;
+    * { box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      max-width: 900px; 
+      margin: 40px auto; 
+      padding: 0 20px; 
+      line-height: 1.6; 
+      color: #333; 
+      font-size: 19px; 
     }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 16px;
-      display: flex;
-      justify-content: center;
+    
+    h2 { 
+      font-size: 29px; 
+      border-bottom: 2px solid #0070f3; 
+      padding-bottom: 8px; 
+      margin-bottom: 20px; 
     }
-    .container {
-      max-width: 650px;
-      width: 100%;
-      background: var(--card-bg);
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    .usage-guide {
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-left: 5px solid #0070f3;
+      border-radius: 6px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      font-size: 17px; 
     }
-    /* タブ */
-    .tab-header {
-      display: flex;
-      gap: 8px;
-      border-bottom: 2px solid var(--gray-light);
-      margin-bottom: 20px;
-    }
-    .tab-btn {
-      padding: 10px 16px;
-      border: none;
-      background: none;
-      font-size: 1em;
-      font-weight: bold;
-      color: #64748b;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
-    }
-    .tab-btn.active {
-      color: var(--primary-color);
-      border-bottom-color: var(--primary-color);
-    }
+    .usage-guide p { margin: 0 0 8px 0; }
+    .usage-guide ul { margin: 0 0 14px 0; padding-left: 24px; }
+    .usage-guide ul li { margin-bottom: 6px; }
+    .guide-title { font-weight: bold; color: #0070f3; margin-bottom: 8px; font-size: 19px; }
 
-    /* ダッシュボード */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
+    .search-box { display: flex; gap: 12px; margin-bottom: 24px; }
+    input[type="text"] { 
+      flex: 1; 
+      padding: 14px; 
+      font-size: 19px; 
+      border: 1px solid #ccc; 
+      border-radius: 6px; 
+      outline: none; 
     }
-    .stat-card {
-      background: var(--gray-light);
-      padding: 12px;
-      border-radius: 8px;
-      text-align: center;
+    input[type="text"]:focus { border-color: #0070f3; }
+    
+    .btn-search { 
+      padding: 14px 28px; 
+      font-size: 19px; 
+      background-color: #0070f3; 
+      color: white; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      transition: background-color 0.2s; 
+      white-space: nowrap; 
     }
-    .stat-value {
-      font-size: 1.5em;
-      font-weight: bold;
-      color: var(--primary-color);
-      margin-top: 4px;
-    }
-    .stat-label {
-      font-size: 0.8em;
-      color: #64748b;
-    }
+    .btn-search:hover { background-color: #0051a2; }
 
-    .category-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .category-item {
-      background: #fff;
-      border: 1px solid var(--gray-light);
-      padding: 12px;
-      border-radius: 8px;
-    }
-    .category-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.9em;
-      margin-bottom: 6px;
-      font-weight: bold;
-    }
-    .progress-bar-bg {
-      background: var(--gray-light);
-      height: 8px;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .progress-bar-fill {
-      background: var(--primary-color);
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s;
-    }
-
-    /* クイズヘッダー情報 */
-    .meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85em;
-      color: #64748b;
-      margin-bottom: 8px;
-    }
-    .topic-tag {
-      display: inline-block;
-      background-color: #eff6ff;
-      color: var(--primary-color);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.85em;
-      font-weight: bold;
-      margin-bottom: 16px;
-    }
-
-    .question {
-      font-size: 1.05em;
-      font-weight: bold;
-      margin-bottom: 20px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-    .options {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .option-btn {
-      padding: 14px 16px;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
-      background: white;
-      text-align: left;
-      font-size: 100%;
-      cursor: pointer;
-      line-height: 1.5;
-    }
-    .option-btn:hover:not(:disabled) {
-      border-color: var(--primary-color);
-      background-color: #eff6ff;
-    }
-    .result-box {
-      margin-top: 20px;
-      padding: 16px;
-      border-radius: 8px;
-      display: none;
-    }
-    .result-box.correct {
-      background-color: #dcfce7;
-      color: #14532d;
-      border: 1px solid #bbf7d0;
-    }
-    .result-box.wrong {
-      background-color: #fee2e2;
-      color: #7f1d1d;
-      border: 1px solid #fecaca;
-    }
-    .explanation {
-      margin-top: 12px;
-      font-size: 0.95em;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-    .btn-primary {
-      width: 100%;
-      padding: 12px;
-      background-color: var(--primary-color);
+    /* 登録完了ボタンのスタイル */
+    .btn-complete {
+      padding: 8px 16px;
+      font-size: 16px;
+      background-color: #10b981;
       color: white;
       border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 1em;
+      border-radius: 4px;
       cursor: pointer;
-      margin-top: 12px;
+      transition: background-color 0.2s;
     }
-    .btn-danger {
-      background-color: #94a3b8;
-      font-size: 0.8em;
-      padding: 6px 12px;
-      margin-top: 20px;
+    .btn-complete:hover { background-color: #059669; }
+    .btn-complete:disabled { background-color: #a7f3d0; cursor: not-allowed; }
+
+    /* 登録済ラベルのスタイル */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #065f46;
+      background-color: #d1fae5;
+      border-radius: 4px;
     }
-    #loading {
-      text-align: center;
-      padding: 40px;
-      color: #64748b;
-    }
+    
+    #status { margin-bottom: 12px; font-weight: bold; font-size: 19px; }
+    .loading { color: #666; font-style: italic; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 18px; }
+    th, td { border: 1px solid #e0e0e0; padding: 14px; text-align: left; vertical-align: middle; }
+    th { background-color: #f7f9fa; font-weight: 600; }
+    tr:nth-child(even) { background-color: #fcfcfc; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div id="loading">問題データを読み込み中...</div>
+  <h2>🔍 会員番号検索システム</h2>
 
-  <div id="app-content" style="display: none;">
-    <!-- タブヘッダー -->
-    <div class="tab-header">
-      <button class="tab-btn active" onclick="switchTab('dashboard')">ダッシュボード</button>
-      <button class="tab-btn" onclick="switchTab('quiz')">問題演習</button>
-    </div>
+  <div class="usage-guide">
+    <div class="guide-title">【使い方・検索のコツ】</div>
+    <ul>
+      <li>「氏名」または「企業名」の一部から検索できます。</li>
+      <li>複数のキーワードを「スペース（空白）」で区切ると、条件を絞り込めます。</li>
+    </ul>
 
-    <!-- ダッシュボード画面 -->
-    <div id="tab-dashboard">
-      <h2 style="margin-top:0;">学習状況</h2>
-      
-      <div class="dashboard-grid">
-        <div class="stat-card">
-          <div class="stat-label">総解答数</div>
-          <div class="stat-value" id="stat-total">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">正解数</div>
-          <div class="stat-value" id="stat-correct">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">全体正解率</div>
-          <div class="stat-value" id="stat-rate">0%</div>
-        </div>
-      </div>
-
-      <h3>科目別分析</h3>
-      <div class="category-list" id="category-stats"></div>
-
-      <button class="btn-primary" onclick="switchTab('quiz')">問題を解く</button>
-      <center><button class="btn-primary btn-danger" onclick="resetStats()">学習データをリセット</button></center>
-    </div>
-
-    <!-- クイズ画面 -->
-    <div id="tab-quiz" style="display: none;">
-      <div class="meta">
-        <span id="q-category"></span>
-        <span id="q-progress"></span>
-      </div>
-      <div id="q-thema" class="topic-tag"></div>
-      <div class="question" id="q-text"></div>
-      <div class="options" id="q-options"></div>
-      
-      <div id="result-box" class="result-box">
-        <h3 id="result-title" style="margin-top:0;"></h3>
-        <div>正解：<span id="correct-answer"></span></div>
-        <div class="explanation" id="q-explanation"></div>
-        <button class="btn-primary" onclick="nextQuestion()">次の問題へ</button>
-      </div>
-    </div>
+    <div class="guide-title">【入力例】</div>
+    <ul>
+      <li>「佐藤」 → 氏名または企業名に「佐藤」が含まれるデータ</li>
+      <li>「グローバル」 → 氏名または企業名に「グローバル」が含まれるデータ</li>
+      <li>「佐藤 グローバル」 → 氏名に「佐藤」があり、かつ企業名に「グローバル」が含まれるデータ</li>
+    </ul>
   </div>
-</div>
-
-<script>
-  const API_URL = "https://script.google.com/macros/s/AKfycby5CbCOq9qtOTdHTo-bL5yXN_GHxJiCFePbk6Uz0It1E1oLTH7EM4WKEZSzqw65XA4/exec";
-
-  let questions = [];
-  let currentIndex = 0;
   
-  let userStats = JSON.parse(localStorage.getItem("gyosei_quiz_stats")) || {
-    total: 0,
-    correct: 0,
-    categories: {}
-  };
+  <div class="search-box">
+    <input type="text" id="keyword" placeholder="氏名や企業名を入力..." onkeypress="if(event.key==='Enter') search()">
+    <button class="btn-search" onclick="search()">検索</button>
+  </div>
 
-  async function init() {
-    try {
-      const response = await fetch(API_URL);
-      questions = await response.json();
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("app-content").style.display = "block";
-      
-      updateDashboard();
-      showQuestion();
-    } catch (error) {
-      document.getElementById("loading").innerText = "データの読み込みに失敗しました。";
-    }
-  }
+  <div id="status"></div>
 
-  function switchTab(tabName) {
-    const isDash = tabName === 'dashboard';
-    document.getElementById("tab-dashboard").style.display = isDash ? "block" : "none";
-    document.getElementById("tab-quiz").style.display = isDash ? "none" : "block";
-    
-    const tabs = document.querySelectorAll(".tab-btn");
-    tabs[0].classList.toggle("active", isDash);
-    tabs[1].classList.toggle("active", !isDash);
+  <table>
+    <thead>
+      <tr>
+        <th>会員番号</th>
+        <th>氏名</th>
+        <th>企業名</th>
+        <th>ステータス</th>
+      </tr>
+    </thead>
+    <tbody id="result-table">
+      <!-- 検索結果の表示エリア -->
+    </tbody>
+  </table>
 
-    if (isDash) updateDashboard();
-  }
+  <script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzUGvGV3VTk27ZvBB9CMJsdasXVtygmlv0IBF63Dlbm7r0h18LNJqYkzqsJtnbizJWI/exec";
 
-  function updateDashboard() {
-    document.getElementById("stat-total").innerText = userStats.total;
-    document.getElementById("stat-correct").innerText = userStats.correct;
-    const rate = userStats.total > 0 ? Math.round((userStats.correct / userStats.total) * 100) : 0;
-    document.getElementById("stat-rate").innerText = `${rate}%`;
+    async function search() {
+      const keyword = document.getElementById("keyword").value.trim();
+      const statusEl = document.getElementById("status");
+      const tableBody = document.getElementById("result-table");
 
-    const catContainer = document.getElementById("category-stats");
-    catContainer.innerHTML = "";
+      statusEl.className = "loading";
+      statusEl.textContent = "検索中...";
+      tableBody.innerHTML = "";
 
-    const categories = [...new Set(questions.map(q => q.category || "その他"))];
+      try {
+        const response = await fetch(`${GAS_API_URL}?keyword=${encodeURIComponent(keyword)}`, {
+          method: "GET",
+          redirect: "follow"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-    categories.forEach(cat => {
-      const catData = userStats.categories[cat] || { total: 0, correct: 0 };
-      const catRate = catData.total > 0 ? Math.round((catData.correct / catData.total) * 100) : 0;
+        const data = await response.json();
 
-      const item = document.createElement("div");
-      item.className = "category-item";
-      item.innerHTML = `
-        <div class="category-meta">
-          <span>${cat}</span>
-          <span>正解率 ${catRate}% (${catData.correct}/${catData.total}問)</span>
-        </div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${catRate}%;"></div>
-        </div>
-      `;
-      catContainer.appendChild(item);
-    });
-  }
+        statusEl.className = "";
+        statusEl.textContent = `検索結果: ${data.length} 件`;
 
-  function showQuestion() {
-    const q = questions[currentIndex];
-    
-    // 科目・中分類・年度の表示
-    const categoryText = q.subcategory ? `${q.category} > ${q.subcategory}` : (q.category || '');
-    const yearText = q.year ? `［${q.year}］` : '';
-    document.getElementById("q-category").innerText = `【${categoryText}】 ${yearText}`;
-    
-    // テーマの表示
-    const themaElem = document.getElementById("q-thema");
-    if (q.thema) {
-      themaElem.style.display = "inline-block";
-      themaElem.innerText = `テーマ：${q.thema}`;
-    } else {
-      themaElem.style.display = "none";
-    }
+        if (data.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888;">該当する会員は見つかりませんでした。</td></tr>';
+          return;
+        }
 
-    document.getElementById("q-progress").innerText = `問 ${currentIndex + 1} / ${questions.length}`;
-    document.getElementById("q-text").innerText = q.question;
-    document.getElementById("result-box").style.display = "none";
+        data.forEach(item => {
+          const row = document.createElement("tr");
+          
+          // ステータス表示の切り替え（登録済 / 登録完了ボタン）
+          let statusHtml = "";
+          if (item.登録ステータス === "登録済") {
+            statusHtml = `<span class="status-badge">登録済</span>`;
+          } else {
+            statusHtml = `<button class="btn-complete" onclick="updateStatus('${item.会員番号}', this)">登録完了</button>`;
+          }
 
-    const optionsContainer = document.getElementById("q-options");
-    optionsContainer.innerHTML = "";
+          row.innerHTML = `
+            <td>${item.会員番号 || ''}</td>
+            <td>${item.氏名 || ''}</td>
+            <td>${item.企業名 || ''}</td>
+            <td>${statusHtml}</td>
+          `;
+          tableBody.appendChild(row);
+        });
 
-    [1, 2, 3, 4, 5].forEach(num => {
-      const optText = q[`option${num}`];
-      if (optText) {
-        const btn = document.createElement("button");
-        btn.className = "option-btn";
-        btn.innerText = `肢${num}. ${optText}`;
-        btn.onclick = () => selectOption(num);
-        optionsContainer.appendChild(btn);
+      } catch (error) {
+        console.error("Error:", error);
+        statusEl.className = "";
+        statusEl.style.color = "red";
+        statusEl.textContent = "データの取得に失敗しました。";
       }
-    });
-  }
-
-  function selectOption(selectedNum) {
-    const q = questions[currentIndex];
-    const isCorrect = selectedNum == q.answer;
-    const category = q.category || "その他";
-
-    userStats.total++;
-    if (isCorrect) userStats.correct++;
-
-    if (!userStats.categories[category]) {
-      userStats.categories[category] = { total: 0, correct: 0 };
     }
-    userStats.categories[category].total++;
-    if (isCorrect) userStats.categories[category].correct++;
 
-    localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
+    // 登録完了ボタンが押された時の更新処理
+    async function updateStatus(memberNo, btnElement) {
+      if (!confirm(`会員番号: ${memberNo} を「登録済」に変更しますか？`)) {
+        return;
+      }
 
-    document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
+      btnElement.disabled = true;
+      btnElement.textContent = "更新中...";
 
-    const resultBox = document.getElementById("result-box");
-    resultBox.style.display = "block";
-    resultBox.className = isCorrect ? "result-box correct" : "result-box wrong";
-    document.getElementById("result-title").innerText = isCorrect ? "⭕ 正解！" : "❌ 不正解...";
-    document.getElementById("correct-answer").innerText = `肢 ${q.answer}`;
-    document.getElementById("q-explanation").innerText = q.explanation || "解説はありません。";
-  }
+      try {
+        const response = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({ memberNo: memberNo }),
+          redirect: "follow"
+        });
 
-  function nextQuestion() {
-    currentIndex++;
-    if (currentIndex < questions.length) {
-      showQuestion();
-    } else {
-      alert("すべての問題をとき終えました！ダッシュボードで結果を確認してみましょう。");
-      currentIndex = 0;
-      switchTab('dashboard');
+        const resData = await response.json();
+
+        if (resData.success) {
+          // ボタンの親要素（td列）を取得し、ボタンを消去して「登録済」バッジに変更
+          const tdCell = btnElement.parentElement;
+          tdCell.innerHTML = `<span class="status-badge">登録済</span>`;
+        } else {
+          alert("更新に失敗しました。もう一度お試しください。");
+          btnElement.disabled = false;
+          btnElement.textContent = "登録完了";
+        }
+      } catch (error) {
+        console.error("Update Error:", error);
+        alert("通信エラーが発生しました。");
+        btnElement.disabled = false;
+        btnElement.textContent = "登録完了";
+      }
     }
-  }
 
-  function resetStats() {
-    if (confirm("これまでの学習データをすべて消去しますか？")) {
-      localStorage.removeItem("gyosei_quiz_stats");
-      userStats = { total: 0, correct: 0, categories: {} };
-      updateDashboard();
-    }
-  }
-
-  init();
-</script>
-
+    // 初期表示時に全件検索を実行
+    window.onload = search;
+  </script>
 </body>
 </html>
