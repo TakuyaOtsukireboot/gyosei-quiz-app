@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>行政書士試験 択一対策＆クラウド同期ダッシュボード</title>
-  <!-- Google Identity Services (ログイン用) -->
+  <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
@@ -13,6 +13,12 @@
       --card-bg: #ffffff;
       --text-color: #1e293b;
       --gray-light: #f1f5f9;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+      --danger-bg: #fee2e2;
+      --danger-text: #991b1b;
+      --neutral-bg: #e2e8f0;
+      --neutral-text: #475569;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -98,8 +104,17 @@
     .category-item {
       background: #fff;
       border: 1px solid var(--gray-light);
-      padding: 12px;
       border-radius: 8px;
+      overflow: hidden;
+    }
+    .category-header {
+      padding: 12px;
+      cursor: pointer;
+      background: #fff;
+      transition: background 0.2s;
+    }
+    .category-header:hover {
+      background: #f8fafc;
     }
     .category-meta {
       display: flex;
@@ -120,6 +135,101 @@
       width: 0%;
       transition: width 0.3s;
     }
+    
+    /* 問題詳細リスト (アコーディオン) */
+    .question-sub-list {
+      display: none;
+      border-top: 1px solid var(--gray-light);
+      background: #fafafa;
+      padding: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .category-item.open .question-sub-list {
+      display: block;
+    }
+    .q-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88em;
+      transition: all 0.2s;
+    }
+    .q-row:hover {
+      border-color: var(--primary-color);
+      background: #eff6ff;
+    }
+    .q-row-info {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      overflow: hidden;
+    }
+    .q-row-id {
+      font-weight: bold;
+      color: #64748b;
+      min-width: 45px;
+    }
+    .q-row-thema {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.78em;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .status-badge.correct {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+    .status-badge.wrong {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+    }
+    .status-badge.unanswered {
+      background: var(--neutral-bg);
+      color: var(--neutral-text);
+    }
+
+    /* 前後移動ナビゲーション */
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .nav-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #334155;
+      font-size: 0.9em;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      background: #eff6ff;
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     .meta {
       display: flex;
       justify-content: space-between;
@@ -249,7 +359,7 @@
         </div>
       </div>
 
-      <h3>科目別分析</h3>
+      <h3>科目別分析 (タップで問題一覧を表示)</h3>
       <div class="category-list" id="category-stats"></div>
 
       <button class="btn-primary" onclick="switchTab('quiz')">問題を解く</button>
@@ -257,9 +367,15 @@
 
     <!-- クイズ画面 -->
     <div id="tab-quiz" style="display: none;">
+      <!-- 前後移動ボタンナビゲーション -->
+      <div class="nav-header">
+        <button class="nav-btn" id="prev-btn" onclick="prevQuestion()">＜ 前の問題</button>
+        <span id="q-progress" style="font-weight: bold; color: #64748b; font-size: 0.9em;"></span>
+        <button class="nav-btn" id="next-top-btn" onclick="nextQuestion()">次の問題 ＞</button>
+      </div>
+
       <div class="meta">
         <span id="q-category"></span>
-        <span id="q-progress"></span>
       </div>
       <div id="q-thema" class="topic-tag"></div>
       <div class="question" id="q-text"></div>
@@ -286,10 +402,12 @@
   let questions = [];
   let currentIndex = 0;
   
+  // 各問題ごとの解答履歴を追加 { questionId: { lastResult: 'correct' | 'wrong' } }
   let userStats = JSON.parse(localStorage.getItem("gyosei_quiz_stats")) || {
     total: 0,
     correct: 0,
-    categories: {}
+    categories: {},
+    itemHistory: {}
   };
 
   function initGoogleAuth() {
@@ -341,6 +459,7 @@
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         userStats = await fileRes.json();
+        if(!userStats.itemHistory) userStats.itemHistory = {};
         localStorage.setItem("gyosei_quiz_stats", JSON.stringify(userStats));
         updateDashboard();
       } else {
@@ -389,6 +508,8 @@
     try {
       const response = await fetch(API_URL);
       questions = await response.json();
+      if(!userStats.itemHistory) userStats.itemHistory = {};
+      
       document.getElementById("loading").style.display = "none";
       document.getElementById("app-content").style.display = "block";
       
@@ -426,20 +547,68 @@
     categories.forEach(cat => {
       const catData = userStats.categories[cat] || { total: 0, correct: 0 };
       const catRate = catData.total > 0 ? Math.round((catData.correct / catData.total) * 100) : 0;
+      
+      // 当該科目の問題リストを抽出
+      const catQuestions = questions.filter(q => (q.category || "その他") === cat);
 
       const item = document.createElement("div");
       item.className = "category-item";
-      item.innerHTML = `
+      
+      // アコーディオンのヘッダー
+      const header = document.createElement("div");
+      header.className = "category-header";
+      header.onclick = () => item.classList.toggle("open");
+      header.innerHTML = `
         <div class="category-meta">
-          <span>${cat}</span>
+          <span>${cat} (全${catQuestions.length}問) ▼</span>
           <span>正解率 ${catRate}% (${catData.correct}/${catData.total}問)</span>
         </div>
         <div class="progress-bar-bg">
           <div class="progress-bar-fill" style="width: ${catRate}%;"></div>
         </div>
       `;
+      item.appendChild(header);
+
+      // サブ問題リスト（i, ii の機能）
+      const subList = document.createElement("div");
+      subList.className = "question-sub-list";
+
+      catQuestions.forEach((q) => {
+        const qIndex = questions.indexOf(q);
+        const history = userStats.itemHistory[q.id];
+        
+        let statusBadge = `<span class="status-badge unanswered">未解答</span>`;
+        if (history) {
+          if (history.lastResult === 'correct') {
+            statusBadge = `<span class="status-badge correct">正答済み</span>`;
+          } else if (history.lastResult === 'wrong') {
+            statusBadge = `<span class="status-badge wrong">未正答</span>`;
+          }
+        }
+
+        const qRow = document.createElement("div");
+        qRow.className = "q-row";
+        qRow.onclick = () => jumpToQuestion(qIndex); // ⅱ: クリックでジャンプ
+        qRow.innerHTML = `
+          <div class="q-row-info">
+            <span class="q-row-id">問${q.id}</span>
+            <span class="q-row-thema">${q.thema || q.subcategory || 'テーマなし'}</span>
+          </div>
+          ${statusBadge}
+        `;
+        subList.appendChild(qRow);
+      });
+
+      item.appendChild(subList);
       catContainer.appendChild(item);
     });
+  }
+
+  // 指定した問題インデックスにジャンプしてクイズ画面を開く (ⅱの機能)
+  function jumpToQuestion(index) {
+    currentIndex = index;
+    showQuestion();
+    switchTab('quiz');
   }
 
   function showQuestion() {
@@ -456,7 +625,11 @@
       themaElem.style.display = "none";
     }
 
+    // 進捗表示と前後のボタン活性制御
     document.getElementById("q-progress").innerText = `問 ${currentIndex + 1} / ${questions.length}`;
+    document.getElementById("prev-btn").disabled = currentIndex === 0;
+    document.getElementById("next-top-btn").disabled = currentIndex === questions.length - 1;
+
     document.getElementById("q-text").innerText = q.question;
     document.getElementById("result-box").style.display = "none";
 
@@ -489,6 +662,12 @@
     userStats.categories[category].total++;
     if (isCorrect) userStats.categories[category].correct++;
 
+    // 個別問題ごとの正誤状態を記録
+    if (!userStats.itemHistory) userStats.itemHistory = {};
+    userStats.itemHistory[q.id] = {
+      lastResult: isCorrect ? 'correct' : 'wrong'
+    };
+
     await saveStatsToDrive();
 
     document.querySelectorAll(".option-btn").forEach(btn => btn.disabled = true);
@@ -501,14 +680,22 @@
     document.getElementById("q-explanation").innerText = q.explanation || "解説はありません。";
   }
 
+  // 次の問題へ進む
   function nextQuestion() {
-    currentIndex++;
-    if (currentIndex < questions.length) {
+    if (currentIndex < questions.length - 1) {
+      currentIndex++;
       showQuestion();
     } else {
-      alert("すべての問題をとき終えました！ダッシュボードで結果を確認してみましょう。");
-      currentIndex = 0;
+      alert("最後の問題です。ダッシュボードで結果を確認してみましょう。");
       switchTab('dashboard');
+    }
+  }
+
+  // 前の問題へ戻る
+  function prevQuestion() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      showQuestion();
     }
   }
 
